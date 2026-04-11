@@ -1,18 +1,4 @@
 import { useState, useEffect, useReducer, useMemo, useRef, useCallback } from "react";
-
-/*
- ╔══════════════════════════════════════════════════════════════╗
- ║  VIBEFIT STUDIO — Sistema de Control de Pagos y Alumnas     ║
- ║                                                              ║
- ║  🔥 SETUP DE FIREBASE (una sola vez):                       ║
- ║  1. Ve a https://console.firebase.google.com                ║
- ║  2. Crea un proyecto nuevo llamado "vibefit-studio"          ║
- ║  3. En el panel, ve a "Realtime Database" → Crear           ║
- ║  4. Selecciona "Iniciar en modo de prueba"                  ║
- ║  5. Copia tu URL de la base y pégala en FIREBASE_URL        ║
- ╚══════════════════════════════════════════════════════════════╝
-*/
-
 const FIREBASE_URL = "https://vibefit-studio-a0f2d-default-rtdb.firebaseio.com";
 
 // ─── Helpers ───
