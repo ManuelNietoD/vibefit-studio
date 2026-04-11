@@ -228,13 +228,13 @@ select.fi{cursor:pointer}
 .setup code{display:block;margin:6px 0;padding:6px 10px;background:rgba(0,0,0,.05);border-radius:6px;font-size:11px;word-break:break-all}
 
 /* Calendario — full width */
-.cal-wrap{padding:0 0 12px}
+.cal-wrap{padding:0 4px 12px}
 .cal-month{background:var(--sf);border-left:none;border-right:none;border-top:1px solid var(--bd);border-bottom:1px solid var(--bd);margin-bottom:10px;overflow:hidden;box-shadow:var(--sh)}
 .cal-hdr{background:linear-gradient(135deg,var(--pk),var(--rs));padding:10px 16px;display:flex;justify-content:space-between;align-items:center}
 .cal-hdr-title{font-family:'Fredoka';font-size:17px;font-weight:700;color:#fff;letter-spacing:.5px}
 .cal-hdr-stats{display:flex;gap:8px}
 .cal-stat-pill{background:rgba(255,255,255,.22);color:#fff;font-size:10px;font-weight:700;padding:3px 8px;border-radius:10px;font-family:'Fredoka'}
-.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;padding:8px 8px 10px}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;padding:8px 12px 10px}
 .cal-dow{font-size:10px;font-weight:800;color:var(--tx3);text-align:center;padding:2px 0 6px;letter-spacing:.5px;font-family:'Fredoka';text-transform:uppercase}
 .cal-day{width:100%;aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:50%;font-size:13px;font-weight:700;font-family:'Fredoka';position:relative;cursor:default}
 .cal-day.empty{}
