@@ -1,4 +1,18 @@
 import { useState, useEffect, useReducer, useMemo, useRef, useCallback } from "react";
+
+/*
+ ╔══════════════════════════════════════════════════════════════╗
+ ║  VIBEFIT STUDIO — Sistema de Control de Pagos y Alumnas     ║
+ ║                                                              ║
+ ║  🔥 SETUP DE FIREBASE (una sola vez):                       ║
+ ║  1. Ve a https://console.firebase.google.com                ║
+ ║  2. Crea un proyecto nuevo llamado "vibefit-studio"          ║
+ ║  3. En el panel, ve a "Realtime Database" → Crear           ║
+ ║  4. Selecciona "Iniciar en modo de prueba"                  ║
+ ║  5. Copia tu URL de la base y pégala en FIREBASE_URL        ║
+ ╚══════════════════════════════════════════════════════════════╝
+*/
+
 const FIREBASE_URL = "https://vibefit-studio-a0f2d-default-rtdb.firebaseio.com";
 
 // ─── Helpers ───
@@ -228,15 +242,15 @@ select.fi{cursor:pointer}
 .setup code{display:block;margin:6px 0;padding:6px 10px;background:rgba(0,0,0,.05);border-radius:6px;font-size:11px;word-break:break-all}
 
 /* Calendario — full width */
-.cal-wrap{padding:0 4px 12px}
+.cal-wrap{padding:0 0 12px}
 .cal-month{background:var(--sf);border-left:none;border-right:none;border-top:1px solid var(--bd);border-bottom:1px solid var(--bd);margin-bottom:10px;overflow:hidden;box-shadow:var(--sh)}
 .cal-hdr{background:linear-gradient(135deg,var(--pk),var(--rs));padding:10px 16px;display:flex;justify-content:space-between;align-items:center}
 .cal-hdr-title{font-family:'Fredoka';font-size:17px;font-weight:700;color:#fff;letter-spacing:.5px}
 .cal-hdr-stats{display:flex;gap:8px}
 .cal-stat-pill{background:rgba(255,255,255,.22);color:#fff;font-size:10px;font-weight:700;padding:3px 8px;border-radius:10px;font-family:'Fredoka'}
-.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;padding:8px 12px 10px}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;padding:6px 10px 10px}
 .cal-dow{font-size:10px;font-weight:800;color:var(--tx3);text-align:center;padding:2px 0 6px;letter-spacing:.5px;font-family:'Fredoka';text-transform:uppercase}
-.cal-day{width:100%;aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:50%;font-size:13px;font-weight:700;font-family:'Fredoka';position:relative;cursor:default}
+.cal-day{width:100%;height:40px;display:flex;align-items:center;justify-content:center;border-radius:50%;font-size:13px;font-weight:700;font-family:'Fredoka';position:relative;cursor:default}
 .cal-day.empty{}
 .cal-day.today-hl{box-shadow:0 0 0 2px var(--pk)}
 .cal-day.d-monthly{background:#4A90D9;color:#fff}
