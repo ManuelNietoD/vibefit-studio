@@ -29,10 +29,11 @@ const SCHEDULES = [
 ];
 
 const PLAN_TYPES = [
-  {id:"monthly",    name:"Mensualidad", price:680, icon:"📅"},
-  {id:"weekly",     name:"Semanal",     price:200, icon:"📋"},
-  {id:"separo",     name:"Separo",      price:100, icon:"🔖"},
-  {id:"inscription",name:"Inscripción", price:100, icon:"⭐"},
+  {id:"monthly",    name:"Mensualidad",     price:680, icon:"📅"},
+  {id:"weekly",     name:"Semanal",         price:200, icon:"📋"},
+  {id:"separo",     name:"Separo",          price:100, icon:"🔖"},
+  {id:"inscription",name:"Inscripción",     price:100, icon:"⭐"},
+  {id:"individual", name:"Clase Individual",price:60,  icon:"🎯"},
 ];
 
 // ── 50 fechas de cobro semanal ──
@@ -390,11 +391,11 @@ function Home({state,go}){
   const td=today(),dt=new Date(td+"T12:00:00"),mo=dt.getMonth(),yr=dt.getFullYear();
   const mon=getMonday(td),sun=getSunday(mon);
   const ms=`${yr}-${String(mo+1).padStart(2,"0")}-01`,me=`${yr}-${String(mo+1).padStart(2,"0")}-31`;
-  const mRev=payments.filter(p=>p.date>=ms&&p.date<=me).reduce((s,p)=>s+p.amount,0);
-  const wRev=payments.filter(p=>p.date>=mon&&p.date<=sun).reduce((s,p)=>s+p.amount,0);
+  const mRev=payments.filter(p=>p.date>=ms&&p.date<=me&&!(p.planType==="inscription"&&p.isLegacy)).reduce((s,p)=>s+p.amount,0);
+  const wRev=payments.filter(p=>p.date>=mon&&p.date<=sun&&!(p.planType==="inscription"&&p.isLegacy)).reduce((s,p)=>s+p.amount,0);
   const pending=members.filter(m=>!isPaid(m,state.payments,td));
   const bySched=SCHEDULES.map(s=>({...s,n:members.filter(m=>m.schedule===s.id).length}));
-  const chart=useMemo(()=>{const d=[];for(let i=0;i<12;i++){const s=`${yr}-${String(i+1).padStart(2,"0")}-01`,e=`${yr}-${String(i+1).padStart(2,"0")}-31`;d.push({l:monthNames[i].slice(0,3),v:payments.filter(p=>p.date>=s&&p.date<=e).reduce((sum,p)=>sum+p.amount,0)});}return d;},[payments,yr]);
+  const chart=useMemo(()=>{const d=[];for(let i=0;i<12;i++){const s=`${yr}-${String(i+1).padStart(2,"0")}-01`,e=`${yr}-${String(i+1).padStart(2,"0")}-31`;d.push({l:monthNames[i].slice(0,3),v:payments.filter(p=>p.date>=s&&p.date<=e&&!(p.planType==="inscription"&&p.isLegacy)).reduce((sum,p)=>sum+p.amount,0)});}return d;},[payments,yr]);
   const maxR=Math.max(...chart.map(d=>d.v),1);
   const recent=[...payments].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5);
   return(<div>
@@ -468,7 +469,8 @@ function Members({state,dispatch,go}){
     dispatch({type:"ADD_MEMBER",payload:member,counters:{...state.counters,[sch]:cnt}});
     await db.set(`members/${id}`,member);await db.set(`counters/${sch}`,cnt);
     if(altaTipo==="existente"){
-      const pid=uid();const inscPay={id:pid,memberId:id,amount:100,method:"cash",date:today(),planType:"inscription",note:"Inscripción previa al sistema",createdAt:nowISO()};
+      // isLegacy=true: solo referencia, NO cuenta en métricas
+      const pid=uid();const inscPay={id:pid,memberId:id,amount:100,method:"cash",date:today(),planType:"inscription",isLegacy:true,note:"Inscripción previa al sistema",createdAt:nowISO()};
       dispatch({type:"ADD_PAY",payload:inscPay});await db.set(`payments/${pid}`,inscPay);
     }
     setF({name:"",lastName:"",phone:"",schedule:"7pm",planType:"monthly"});setAltaTipo("nueva");setShow(false);
@@ -646,13 +648,28 @@ function Detail({member:init,state,dispatch,go}){
             <div className="pay-opt-price">{fmt(opt.price)}</div>
           </div>
         ))}
-        {/* Opciones adicionales: separo e inscripción */}
-        {[{id:"separo",label:"🔖 Separo",price:100,planType:"separo"},{id:"inscription",label:"⭐ Inscripción",price:100,planType:"inscription"}].map(opt=>(
-          <div key={opt.id} className={`pay-opt ${selOpt?.planType===opt.planType?"on":""}`} style={{borderLeftColor:"var(--gd)"}} onClick={()=>selectOpt({...opt,type:"extra",label:opt.label.replace("🔖 ","").replace("⭐ ","")})}>
-            <div><div className="pay-opt-lbl">{opt.label}</div></div>
+        {/* Opciones adicionales: separo, inscripción, clase individual */}
+        {[{id:"separo",label:"🔖 Separo",price:100,planType:"separo"},{id:"inscription",label:"⭐ Inscripción",price:100,planType:"inscription"},{id:"individual",label:"🎯 Clase Individual",price:60,planType:"individual"}].map(opt=>(
+          <div key={opt.id} className={`pay-opt ${selOpt?.planType===opt.planType?"on":""}`} style={{borderLeftColor:"var(--gd)"}} onClick={()=>selectOpt({...opt,type:"extra",label:opt.label.replace("🔖 ","").replace("⭐ ","").replace("🎯 ","")})}>
+            <div><div className="pay-opt-lbl">{opt.label}</div>{opt.id==="individual"&&<div className="pay-opt-sub">$60 por clase</div>}</div>
             <div className="pay-opt-price">{fmt(opt.price)}</div>
           </div>
         ))}
+        {/* Contador de clases individuales */}
+        {selOpt?.planType==="individual"&&(
+          <div style={{background:"var(--blb)",border:"1.5px solid var(--bl)",borderRadius:"var(--rs2)",padding:"12px 14px",marginBottom:7}}>
+            <div style={{fontSize:11,fontWeight:800,color:"var(--bl)",marginBottom:10,textTransform:"uppercase",letterSpacing:.5}}>Número de clases</div>
+            <div style={{display:"flex",alignItems:"center",gap:12,justifyContent:"center"}}>
+              <button onClick={()=>{const n=Math.max(1,(parseFloat(payAmount)||60)/60-1);setPayAmount(String(n*60));}} style={{width:36,height:36,borderRadius:"50%",border:"2px solid var(--bl)",background:"#fff",fontFamily:"Fredoka",fontSize:20,fontWeight:700,color:"var(--bl)",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}>−</button>
+              <div style={{textAlign:"center"}}>
+                <div style={{fontFamily:"Fredoka",fontSize:28,fontWeight:700,color:"var(--bl)"}}>{Math.round((parseFloat(payAmount)||60)/60)}</div>
+                <div style={{fontSize:10,color:"var(--tx2)",fontWeight:700}}>clase{Math.round((parseFloat(payAmount)||60)/60)!==1?"s":""}</div>
+              </div>
+              <button onClick={()=>{const n=(parseFloat(payAmount)||60)/60+1;setPayAmount(String(n*60));}} style={{width:36,height:36,borderRadius:"50%",border:"2px solid var(--bl)",background:"var(--bl)",fontFamily:"Fredoka",fontSize:20,fontWeight:700,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}>+</button>
+            </div>
+            <div style={{textAlign:"center",fontFamily:"Fredoka",fontSize:16,fontWeight:700,color:"var(--bl)",marginTop:8}}>{Math.round((parseFloat(payAmount)||60)/60)} × $60 = {fmt((parseFloat(payAmount)||60))}</div>
+          </div>
+        )}
       </div>
       <div className="fg"><label className="fl">Monto</label><input className="fi" type="number" inputMode="decimal" value={payAmount} onChange={e=>setPayAmount(e.target.value)}/></div>
       <div className="fg"><label className="fl">Método</label>
@@ -707,7 +724,7 @@ function PayList({state,go}){
   const [fl,setFl]=useState("all");const [pr,setPr]=useState("week");const [tf,setTf]=useState("all");
   const td=today(),dt=new Date(td+"T12:00:00"),mon=getMonday(td),sun=getSunday(mon),mo=dt.getMonth(),yr=dt.getFullYear();
   const ms=`${yr}-${String(mo+1).padStart(2,"0")}-01`,me=`${yr}-${String(mo+1).padStart(2,"0")}-31`;
-  let list=Object.values(state.payments).sort((a,b)=>b.date.localeCompare(a.date));
+  let list=Object.values(state.payments).filter(p=>!(p.planType==="inscription"&&p.isLegacy)).sort((a,b)=>b.date.localeCompare(a.date));
   if(fl==="cash")list=list.filter(p=>p.method==="cash");
   if(fl==="transfer")list=list.filter(p=>p.method==="transfer");
   if(tf!=="all")list=list.filter(p=>p.planType===tf);
@@ -746,7 +763,8 @@ function Cobros({state,go}){
   const all=Object.values(state.members),pays=Object.values(state.payments);
   const pM=all.filter(m=>m.planType==="monthly"&&!pays.some(p=>p.memberId===m.id&&p.planType==="monthly"&&p.date>=ms&&p.date<=me));
   const pW=all.filter(m=>m.planType==="weekly"&&!pays.some(p=>p.memberId===m.id&&p.planType==="weekly"&&p.date>=mon&&p.date<=sun));
-  const pI=all.filter(m=>!pays.some(p=>p.memberId===m.id&&p.planType==="inscription"));
+  // Cobros de inscripción: solo alumnas existentes sin marca legacy (es decir, nunca registradas)
+  const pI=[];
   const pending=[...new Set([...pM,...pW].map(m=>m.id))];
   const [showWA,setShowWA]=useState(null);const [waTpl,setWaTpl]=useState("pago_pendiente");
   const waTpls=[{id:"pago_pendiente",title:"Recordatorio estándar",sub:"Incluye próximo pago"},{id:"primer_aviso",title:"Primer aviso amable",sub:"Tono suave"},{id:"ultimo_aviso",title:"Último aviso",sub:"Urgente pero respetuoso"}];
@@ -774,7 +792,7 @@ function Cobros({state,go}){
     {pending.length===0&&pI.length===0&&<div className="empty" style={{marginTop:16}}><div style={{fontSize:44}}>🎉</div><p style={{fontWeight:700}}>¡Todo al día!</p></div>}
     <Sec title="Mensualidades" icon="📅" color="var(--bl)" list={pM}/>
     <Sec title="Semanales" icon="📋" color="var(--rs)" list={pW}/>
-    <Sec title="Inscripciones" icon="⭐" color="var(--gd)" list={pI} pid="inscription"/>
+    {/* Inscripciones no se muestran en cobros */}
     {showWA&&<Modal title={`💬 WA — ${showWA.name}`} onClose={()=>setShowWA(null)}>
       {waTpls.map(t=>(<div key={t.id} className={`wa-tpl ${waTpl===t.id?"on":""}`} onClick={()=>setWaTpl(t.id)}><div className="wa-tpl-title">{t.title}</div><div className="wa-tpl-sub">{t.sub}</div></div>))}
       <div style={{marginTop:10}}><label className="fl">Vista previa</label><div className="wa-msg">{waM}</div></div>
