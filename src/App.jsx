@@ -2,7 +2,7 @@ import { useState, useEffect, useReducer, useMemo, useCallback } from "react";
 
 const FIREBASE_URL = "https://vibefit-studio-a0f2d-default-rtdb.firebaseio.com";
 
-// ── Helpers ──
+// -- Helpers --
 const uid = () => Math.random().toString(36).slice(2,10) + Date.now().toString(36);
 const fmt = (n) => `$${Number(n).toLocaleString("es-MX",{minimumFractionDigits:2})}`;
 // FIX T+1: usar hora local, no UTC
@@ -36,7 +36,7 @@ const PLAN_TYPES = [
   {id:"individual", name:"Clase Individual",price:60,  icon:"🎯"},
 ];
 
-// ── 50 fechas de cobro semanal ──
+// -- 50 fechas de cobro semanal --
 const WEEKLY_DATES = [
   "2026-01-05","2026-01-12","2026-01-19","2026-01-26",
   "2026-02-03","2026-02-09","2026-02-16","2026-02-23",
@@ -131,7 +131,7 @@ function getUpcomingPaymentOptions(m, payments) {
   return options;
 }
 
-// ── Calendario 2026 — por mes ──
+// -- Calendario 2026 — por mes --
 // monthly = azul (días de cobro mensualidad visibles en ese mes, incluyendo cruce)
 // weekly  = rojo (días de cobro semanal)
 // closed  = gris (estudio cerrado)
@@ -150,7 +150,7 @@ const CALENDAR_DATA = {
   12: { monthly:[1,2],         weekly:[7,14],          closed:[21,22,23,24,25,26,27,28,29,30,31] },
 };
 
-// ── Firebase ──
+// -- Firebase --
 const db = {
   ok:()=>FIREBASE_URL&&!FIREBASE_URL.includes("TU-PROYECTO"),
   async get(path){if(!this.ok())return null;try{const r=await fetch(`${FIREBASE_URL}/${path}.json`);return await r.json();}catch(e){return null;}},
@@ -169,6 +169,7 @@ function reducer(state,action){
     case "ADD_MEMBER":return{...state,members:{...state.members,[action.payload.id]:action.payload},counters:action.counters||state.counters};
     case "EDIT_MEMBER":return{...state,members:{...state.members,[action.payload.id]:{...state.members[action.payload.id],...action.payload}}};
     case "DEL_MEMBER":{const m={...state.members};delete m[action.payload];const p={...state.payments};Object.keys(p).forEach(k=>{if(p[k].memberId===action.payload)delete p[k];});return{...state,members:m,payments:p};}
+    case "SET_STATUS":return{...state,members:{...state.members,[action.payload.id]:{...state.members[action.payload.id],status:action.payload.status,...(action.payload.extra||{})}}};
     case "ADD_PAY":return{...state,payments:{...state.payments,[action.payload.id]:action.payload}};
     case "EDIT_PAY":return{...state,payments:{...state.payments,[action.payload.id]:{...state.payments[action.payload.id],...action.payload}}};
     case "DEL_PAY":{const p={...state.payments};delete p[action.payload];return{...state,payments:p};}
@@ -211,7 +212,7 @@ function buildWAMessage(m,state,tplId){
   return tpls[tplId]||tpls.pago_pendiente;
 }
 
-// ── Icons ──
+// -- Icons --
 const I=({name,size=18,color})=>{
   const p={width:size,height:size,viewBox:"0 0 24 24",fill:"none",stroke:color||"currentColor",strokeWidth:2,strokeLinecap:"round",strokeLinejoin:"round"};
   const d={
@@ -385,7 +386,7 @@ const Confirm=({title,msg,onOk,onNo})=>(
   </div>
 );
 
-// ── HOME ──
+// -- HOME --
 function Home({state,go}){
   const members=Object.values(state.members),payments=Object.values(state.payments);
   const td=today(),dt=new Date(td+"T12:00:00"),mo=dt.getMonth(),yr=dt.getFullYear();
@@ -393,7 +394,7 @@ function Home({state,go}){
   const ms=`${yr}-${String(mo+1).padStart(2,"0")}-01`,me=`${yr}-${String(mo+1).padStart(2,"0")}-31`;
   const mRev=payments.filter(p=>p.date>=ms&&p.date<=me&&!(p.planType==="inscription"&&p.isLegacy)).reduce((s,p)=>s+p.amount,0);
   const wRev=payments.filter(p=>p.date>=mon&&p.date<=sun&&!(p.planType==="inscription"&&p.isLegacy)).reduce((s,p)=>s+p.amount,0);
-  const pending=members.filter(m=>!isPaid(m,state.payments,td));
+  const pending=members.filter(m=>(m.status||"active")==="active"&&!isPaid(m,state.payments,td));
   const bySched=SCHEDULES.map(s=>({...s,n:members.filter(m=>m.schedule===s.id).length}));
   const chart=useMemo(()=>{const d=[];for(let i=0;i<12;i++){const s=`${yr}-${String(i+1).padStart(2,"0")}-01`,e=`${yr}-${String(i+1).padStart(2,"0")}-31`;d.push({l:monthNames[i].slice(0,3),v:payments.filter(p=>p.date>=s&&p.date<=e&&!(p.planType==="inscription"&&p.isLegacy)).reduce((sum,p)=>sum+p.amount,0)});}return d;},[payments,yr]);
   const maxR=Math.max(...chart.map(d=>d.v),1);
@@ -452,13 +453,14 @@ function Home({state,go}){
   </div>);
 }
 
-// ── MEMBERS ──
+// -- MEMBERS --
 function Members({state,dispatch,go}){
   const [q,setQ]=useState("");const [sf,setSf]=useState("all");
   const [show,setShow]=useState(false);const [altaTipo,setAltaTipo]=useState("nueva");
   const [f,setF]=useState({name:"",lastName:"",phone:"",schedule:"7pm",planType:"monthly"});
   const ms=Object.values(state.members);
-  const fl=ms.filter(m=>{const t=`${m.name} ${m.lastName||""} ${m.phone||""} ${m.memberId}`.toLowerCase();return t.includes(q.toLowerCase())&&(sf==="all"||m.schedule===sf);}).sort((a,b)=>(a.name||"").localeCompare(b.name||""));
+  const [statusF,setStatusF]=useState("active");
+  const fl=ms.filter(m=>{const t=`${m.name} ${m.lastName||""} ${m.phone||""} ${m.memberId}`.toLowerCase();const matchQ=t.includes(q.toLowerCase());const matchS=sf==="all"||m.schedule===sf;const matchSt=statusF==="all"||(statusF==="active"?(m.status||"active")==="active":(m.status||"active")==="inactive");return matchQ&&matchS&&matchSt;}).sort((a,b)=>(a.name||"").localeCompare(b.name||""));
 
   const add=async()=>{
     if(!f.name.trim())return;
@@ -481,6 +483,9 @@ function Members({state,dispatch,go}){
     <div className="chips">
       {[{id:"all",l:"Todas"},...SCHEDULES.map(s=>({id:s.id,l:s.label}))].map(x=>(<button key={x.id} className={`chip ${sf===x.id?"on":""}`} onClick={()=>setSf(x.id)}>{x.l}</button>))}
     </div>
+    <div className="chips" style={{marginTop:4}}>
+      {[{id:"active",l:"✅ Activas"},{id:"inactive",l:"⏸ Bajas"},{id:"all",l:"Todas"}].map(x=>(<button key={x.id} className={`chip ${statusF===x.id?"on":""}`} onClick={()=>setStatusF(x.id)}>{x.l}</button>))}
+    </div>
     <div className="sec">{fl.length} Alumnas</div>
     {fl.length===0&&<div className="empty"><div style={{fontSize:32}}>🔍</div><p>{q?"Sin resultados":"No hay alumnas"}</p></div>}
     {fl.map(m=>{
@@ -494,8 +499,8 @@ function Members({state,dispatch,go}){
           <div className="la" style={{background:pd?"var(--mtb)":"var(--pks)",color:pd?"var(--mt)":"var(--pk)"}}>{(m.name||"?")[0]}</div>
           <div className="lc">
             <div style={{display:"flex",alignItems:"center",gap:5}}><span className="ln">{m.name} {m.lastName||""}</span><span className={`sb s${m.schedule.replace("pm","")}`}>{SCHEDULES.find(s=>s.id===m.schedule)?.short}</span></div>
-            <div className="ls"><span className="mid">{m.memberId}</span> · {pl?.name}</div>
-            <span className={`next-pay ${cls}`}>{isOk?"✓ Al día":"⏭ "+nextLbl}</span>
+            <div className="ls"><span className="mid">{m.memberId}</span> · {pl?.name}{(m.status||"active")==="inactive"&&<span style={{marginLeft:5,background:"#f0f0f0",color:"#999",fontSize:9,fontWeight:800,padding:"1px 6px",borderRadius:8}}>BAJA</span>}</div>
+            {(m.status||"active")==="active"&&<span className={`next-pay ${cls}`}>{isOk?"✓ Al día":"⏭ "+nextLbl}</span>}
           </div>
           <div className="lr">{pd?<span className="bdg bg">✓</span>:<span className="bdg br">Debe</span>}</div>
         </div>
@@ -522,13 +527,16 @@ function Members({state,dispatch,go}){
   </div>);
 }
 
-// ── DETAIL ──
+// -- DETAIL --
 function Detail({member:init,state,dispatch,go}){
   const m=state.members[init.id]||init;
   const [showPay,setShowPay]=useState(false);const [showEdit,setShowEdit]=useState(false);
   const [showDel,setShowDel]=useState(false);const [delPay,setDelPay]=useState(null);
   const [editPay,setEditPay]=useState(null);const [showWA,setShowWA]=useState(false);
   const [waTpl,setWaTpl]=useState("pago_pendiente");
+  const [showBaja,setShowBaja]=useState(false);const [showAlta,setShowAlta]=useState(false);
+  const [altaF,setAltaF]=useState({schedule:m.schedule,planType:m.planType});
+  const isActive=(m.status||"active")==="active";
   const pl=PLAN_TYPES.find(p=>p.id===m.planType);
   const st=getStatus(m,state.payments);
   const pd=m.planType==="monthly"?st.monthlyPaid:st.weeklyPaid;
@@ -569,6 +577,16 @@ function Detail({member:init,state,dispatch,go}){
   const rm=async()=>{for(const p of mps)await db.remove(`payments/${p.id}`);await db.remove(`members/${m.id}`);dispatch({type:"DEL_MEMBER",payload:m.id});go("members");};
 
   const [ef,setEf]=useState({name:m.name,lastName:m.lastName||"",phone:m.phone||"",schedule:m.schedule,planType:m.planType});
+  const doBaja=async()=>{
+    dispatch({type:"SET_STATUS",payload:{id:m.id,status:"inactive"}});
+    await db.update(`members/${m.id}`,{status:"inactive"});
+    setShowBaja(false);
+  };
+  const doAlta=async()=>{
+    dispatch({type:"SET_STATUS",payload:{id:m.id,status:"active",extra:{schedule:altaF.schedule,planType:altaF.planType}}});
+    await db.update(`members/${m.id}`,{status:"active",schedule:altaF.schedule,planType:altaF.planType});
+    setShowAlta(false);
+  };
   const waMsg=buildWAMessage(m,state,waTpl);
   const waLink=(msg)=>`https://wa.me/52${m.phone}?text=${encodeURIComponent(msg)}`;
   const waTpls=[
@@ -603,10 +621,15 @@ function Detail({member:init,state,dispatch,go}){
         <div className="dr"><span className="dl">📆 Alta</span><span className="dv">{fullDate(m.createdAt)}</span></div>
       </div>
       <div className="acts">
-        <button className="btn bp1" onClick={openPay}>💰 Cobrar</button>
+        {isActive&&<button className="btn bp1" onClick={openPay}>💰 Cobrar</button>}
         <button className="btn bg1 bsm" onClick={()=>setShowEdit(true)}><I name="edit" size={13}/></button>
+        {isActive
+          ?<button className="btn bd1 bsm" style={{background:"#f0f0f0",color:"#999",border:"1px solid #ddd"}} onClick={()=>setShowBaja(true)}>⏸ Baja</button>
+          :<button className="btn bg1 bsm" style={{background:"var(--mtb)",color:"var(--mt)",border:"1px solid var(--mt)"}} onClick={()=>{setAltaF({schedule:m.schedule,planType:m.planType});setShowAlta(true);}}>✅ Dar de Alta</button>
+        }
         <button className="btn bd1 bsm" onClick={()=>setShowDel(true)}><I name="trash" size={13}/></button>
       </div>
+      {!isActive&&<div style={{margin:"8px 0",padding:"8px 12px",background:"#f5f5f5",borderRadius:10,fontSize:12,color:"#999",fontWeight:700,textAlign:"center"}}>⏸ Alumna dada de baja — no se permiten cobros</div>}
       {m.phone&&<div style={{marginTop:8}}><button className="btn bwab bfull bsm" onClick={()=>setShowWA(true)}>💬 Mensaje WhatsApp Business</button></div>}
     </div>
 
@@ -649,12 +672,17 @@ function Detail({member:init,state,dispatch,go}){
           </div>
         ))}
         {/* Opciones adicionales: separo, inscripción, clase individual */}
-        {[{id:"separo",label:"🔖 Separo",price:100,planType:"separo"},{id:"inscription",label:"⭐ Inscripción",price:100,planType:"inscription"},{id:"individual",label:"🎯 Clase Individual",price:60,planType:"individual"}].map(opt=>(
-          <div key={opt.id} className={`pay-opt ${selOpt?.planType===opt.planType?"on":""}`} style={{borderLeftColor:"var(--gd)"}} onClick={()=>selectOpt({...opt,type:"extra",label:opt.label.replace("🔖 ","").replace("⭐ ","").replace("🎯 ","")})}>
-            <div><div className="pay-opt-lbl">{opt.label}</div>{opt.id==="individual"&&<div className="pay-opt-sub">$60 por clase</div>}</div>
+        {[{id:"separo",price:100,planType:"separo"},{id:"inscription",label:"⭐ Inscripción",price:100,planType:"inscription"},{id:"individual",label:"🎯 Clase Individual",price:60,planType:"individual"}].map(opt=>{
+          const td2=today();
+          const sepLabel=opt.id==="separo"?(()=>{const idx=getWeekIdxForDate(td2);return idx>=0?`🔖 Separo — Sem. ${shortDate(WEEKLY_DATES[idx])}`:"🔖 Separo";})():opt.label;
+          const wStart=opt.id==="separo"?(getWeekIdxForDate(td2)>=0?WEEKLY_DATES[getWeekIdxForDate(td2)]:null):null;
+          const wEnd=opt.id==="separo"&&wStart?getWeekEnd(getWeekIdxForDate(td2)):null;
+          return(
+          <div key={opt.id} className={`pay-opt ${selOpt?.planType===opt.planType?"on":""}`} style={{borderLeftColor:"var(--gd)"}} onClick={()=>selectOpt({...opt,type:"extra",label:sepLabel.replace("🔖 ","").replace("⭐ ","").replace("🎯 ",""),wStart:wStart||undefined,wEnd:wEnd||undefined})}>
+            <div><div className="pay-opt-lbl">{sepLabel}</div>{opt.id==="individual"&&<div className="pay-opt-sub">$60 por clase</div>}{opt.id==="separo"&&wStart&&<div className="pay-opt-sub">Semana {shortDate(wStart)} – {shortDate(wEnd)}</div>}</div>
             <div className="pay-opt-price">{fmt(opt.price)}</div>
-          </div>
-        ))}
+          </div>);
+        })}
         {/* Contador de clases individuales */}
         {selOpt?.planType==="individual"&&(
           <div style={{background:"var(--blb)",border:"1.5px solid var(--bl)",borderRadius:"var(--rs2)",padding:"12px 14px",marginBottom:7}}>
@@ -714,12 +742,19 @@ function Detail({member:init,state,dispatch,go}){
       </a>
     </Modal>}
 
-    {showDel&&<Confirm title="¿Eliminar alumna?" msg={`Se eliminará a ${m.name} y todo su historial.`} onOk={()=>{setShowDel(false);rm();}} onNo={()=>setShowDel(false)}/>}
+    {showBaja&&<Confirm title="¿Dar de baja?" msg={`${m.name} quedará inactiva. Su historial se conserva y puede reactivarse cuando regrese.`} onOk={doBaja} onNo={()=>setShowBaja(false)}/>}
+    {showAlta&&<Modal title="✅ Reactivar Alumna" onClose={()=>setShowAlta(false)}>
+      <div style={{fontSize:13,color:"var(--tx2)",marginBottom:14,fontWeight:600}}>Asigna el horario y plan para el regreso de <strong>{m.name}</strong>:</div>
+      <div className="fg"><label className="fl">Horario</label><div className="sg">{SCHEDULES.map(s=>(<div key={s.id} className={`so ${altaF.schedule===s.id?"on":""}`} onClick={()=>setAltaF({...altaF,schedule:s.id})}><div className="sot">{s.label}</div></div>))}</div></div>
+      <div className="fg"><label className="fl">Plan</label><div className="pg">{PLAN_TYPES.filter(p=>p.id!=="inscription"&&p.id!=="separo"&&p.id!=="individual").map(p=>(<div key={p.id} className={`po ${altaF.planType===p.id?"on":""}`} onClick={()=>setAltaF({...altaF,planType:p.id})}><div className="poi">{p.icon}</div><div className="pon">{p.name}</div><div className="pop">{fmt(p.price)}</div></div>))}</div></div>
+      <button className="btn bp1 bfull" onClick={doAlta}><I name="check" size={14}/> Confirmar Alta</button>
+    </Modal>}
+    {showDel&&<Confirm title="¿Eliminar alumna?" msg={`Se eliminará a ${m.name} y todo su historial permanentemente.`} onOk={()=>{setShowDel(false);rm();}} onNo={()=>setShowDel(false)}/>}
     {delPay&&<Confirm title="¿Eliminar pago?" msg="Este pago se eliminará permanentemente." onOk={()=>rmPay(delPay)} onNo={()=>setDelPay(null)}/>}
   </div>);
 }
 
-// ── PAYMENTS ──
+// -- PAYMENTS --
 function PayList({state,go}){
   const [fl,setFl]=useState("all");const [pr,setPr]=useState("week");const [tf,setTf]=useState("all");
   const td=today(),dt=new Date(td+"T12:00:00"),mon=getMonday(td),sun=getSunday(mon),mo=dt.getMonth(),yr=dt.getFullYear();
@@ -755,14 +790,14 @@ function PayList({state,go}){
   </div>);
 }
 
-// ── COBROS ──
+// -- COBROS --
 function Cobros({state,go}){
   const td=today(),dt=new Date(td+"T12:00:00"),mo=dt.getMonth(),yr=dt.getFullYear();
   const mon=getMonday(td),sun=getSunday(mon);
   const ms=`${yr}-${String(mo+1).padStart(2,"0")}-01`,me=`${yr}-${String(mo+1).padStart(2,"0")}-31`;
   const all=Object.values(state.members),pays=Object.values(state.payments);
-  const pM=all.filter(m=>m.planType==="monthly"&&!pays.some(p=>p.memberId===m.id&&p.planType==="monthly"&&p.date>=ms&&p.date<=me));
-  const pW=all.filter(m=>m.planType==="weekly"&&!pays.some(p=>p.memberId===m.id&&p.planType==="weekly"&&p.date>=mon&&p.date<=sun));
+  const pM=all.filter(m=>(m.status||"active")==="active"&&m.planType==="monthly"&&!pays.some(p=>p.memberId===m.id&&p.planType==="monthly"&&p.date>=ms&&p.date<=me));
+  const pW=all.filter(m=>(m.status||"active")==="active"&&m.planType==="weekly"&&!pays.some(p=>p.memberId===m.id&&p.planType==="weekly"&&p.date>=mon&&p.date<=sun));
 
   const pending=[...new Set([...pM,...pW].map(m=>m.id))];
   const [showWA,setShowWA]=useState(null);const [waTpl,setWaTpl]=useState("pago_pendiente");
@@ -800,7 +835,7 @@ function Cobros({state,go}){
   </div>);
 }
 
-// ── CALENDARIO ──
+// -- CALENDARIO --
 function Calendario({state}){
   const td=today();
   const curYear=new Date(td+"T12:00:00").getFullYear();
@@ -905,7 +940,7 @@ function Calendario({state}){
   </div>);
 }
 
-// ── APP ──
+// -- APP --
 export default function App(){
   const [state,dispatch]=useReducer(reducer,init);
   const [tab,setTab]=useState("home");const [member,setMember]=useState(null);const [loaded,setLoaded]=useState(false);
@@ -935,7 +970,7 @@ export default function App(){
     (async()=>{try{await window.storage.set("vibefit-v3",JSON.stringify(state));}catch(e){}})();
   },[state,loaded]);
 
-  const pending=useMemo(()=>{const td=today();return Object.values(state.members).filter(m=>!isPaid(m,state.payments,td)).length;},[state.members,state.payments]);
+  const pending=useMemo(()=>{const td=today();return Object.values(state.members).filter(m=>(m.status||"active")==="active"&&!isPaid(m,state.payments,td)).length;},[state.members,state.payments]);
 
   if(!loaded)return(<><style>{CSS}</style><div className="app" style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh"}}>
     <div style={{textAlign:"center"}}><div style={{fontSize:40,animation:"pulse 1.5s infinite"}}>💪</div><div style={{color:"var(--tx2)",fontFamily:"Fredoka",fontWeight:600,marginTop:8}}>Cargando Vibefit...</div></div>
